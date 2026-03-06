@@ -6,7 +6,6 @@ export async function POST(req: Request) {
   try {
     const signature = req.headers.get("x-webhook-signature") || "";
     const timestamp = req.headers.get("x-webhook-timestamp") || "";
-
     const rawBody = await req.text();
 
     if (!signature || !timestamp) {
@@ -22,11 +21,9 @@ export async function POST(req: Request) {
     }
 
     const event = JSON.parse(rawBody) as any;
-
     const type = event?.type as string | undefined;
     const orderId = event?.data?.order?.order_id as string | undefined;
     const paymentStatus = event?.data?.payment?.payment_status as string | undefined;
-    const cfPaymentId = event?.data?.payment?.cf_payment_id as string | undefined;
 
     if (!orderId) {
       return NextResponse.json({ ok: true });
@@ -60,10 +57,7 @@ export async function POST(req: Request) {
     if (status) {
       await prisma.payment.updateMany({
         where: { orderId },
-        data: {
-          status,
-          cfPaymentId: cfPaymentId ? String(cfPaymentId) : undefined,
-        },
+        data: { status },
       });
 
       if (status === "PAID") {
