@@ -14,6 +14,7 @@ model User {
   plan         String   @default("FREE")
   planUntil    DateTime?
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   solves   Solve[]
   payments Payment[]
