@@ -13,53 +13,70 @@ function planAmount(plan: "PRO" | "PREMIUM") {
 }
 
 export async function POST(req: Request) {
-  const session = await readSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await readSession();
 
-  const body = await req.json().catch(() => null);
-  const parsed = Schema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    if (!session) {
+      return NextResponse.json(
+        { error: "Please login first." },
+        { status: 401 }
+      );
+    }
 
-  const plan = parsed.data.plan;
-  const amount = planAmount(plan);
+    const body = await req.json().catch(() => null);
+    const parsed = Schema.safeParse(body);
 
-  const baseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-  const orderId = `sub_${plan.toLowerCase()}_${session.uid}_${Date.now()}`;
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    }
 
-  const returnUrl = `${baseUrl}/billing/return?order_id=${encodeURIComponent(orderId)}`;
-  const notifyUrl = `${baseUrl}/api/cashfree/webhook`;
+    const plan = parsed.data.plan;
+    const amount = planAmount(plan);
 
-  // Create Cashfree order
-  const order = await cfCreateOrder({
-    orderId,
-    amount,
-    customer: {
-      id: session.uid,
-      email: session.email,
-      phone: "9999999999", // You can store phone in user profile later
-      name: session.email.split("@")[0],
-    },
-    returnUrl,
-    notifyUrl,
-    note: `${plan} plan purchase`,
-  });
+    const baseUrl =
+      process.env.APP_BASE_URL ||
+      "https://https-github-com-harish3576-ai-homework.onrender.com";
 
-  // Save in DB
-  await prisma.payment.create({
-    data: {
-      userId: session.uid,
+    const orderId = `sub_${plan.toLowerCase()}_${session.uid}_${Date.now()}`;
+
+    const returnUrl = `${baseUrl}/billing/return?order_id=${encodeURIComponent(orderId)}`;
+    const notifyUrl = `${baseUrl}/api/cashfree/webhook`;
+
+    const order = await cfCreateOrder({
       orderId,
-      cfOrderId: String(order.cf_order_id),
-      plan,
       amount,
-      currency: "INR",
-      status: "CREATED",
-    },
-  });
+      customer: {
+        id: session.uid,
+        email: session.email,
+        phone: "9999999999",
+        name: session.email.split("@")[0],
+      },
+      returnUrl,
+      notifyUrl,
+      note: `${plan} plan purchase`,
+    });
 
-  return NextResponse.json({
-    orderId,
-    paymentSessionId: order.payment_session_id,
-    mode: cfModeForJsSdk(),
-  });
+    await prisma.payment.create({
+      data: {
+        userId: session.uid,
+        orderId,
+        cfOrderId: String(order.cf_order_id),
+        plan,
+        amount,
+        currency: "INR",
+        status: "CREATED",
+      },
+    });
+
+    return NextResponse.json({
+      orderId,
+      paymentSessionId: order.payment_session_id,
+      mode: cfModeForJsSdk(),
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message || "Cashfree order create failed" },
+      { status: 500 }
+    );
+  }
 }
