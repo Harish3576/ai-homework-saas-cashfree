@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!orderId) return NextResponse.redirect(new URL("/pricing", req.url));
 
   // Ensure order belongs to user
-  const payment = await prisma.payment.findUnique({ where: { orderId } });
+  const payment = await prisma.payment.findFirst({ where: { orderId } });
   if (!payment || payment.userId !== session.uid) {
     return NextResponse.redirect(new URL("/pricing", req.url));
   }
