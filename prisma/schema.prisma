@@ -1,47 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  plan         String   @default("FREE") // FREE | PRO | PREMIUM
-  planUntil    DateTime? // when paid plan expires (null for FREE)
+  plan         String   @default("FREE")
+  planUntil    DateTime?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  solves       Solve[]
-  payments     Payment[]
+
+  solves   Solve[]
+  payments Payment[]
 }
 
 model Solve {
   id        String   @id @default(cuid())
   userId    String
-  prompt    String
-  result    String
+  question  String
+  answer    String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  userId      String
-  orderId     String   @unique // your order_id used in Cashfree
-  cfOrderId   String?          // Cashfree cf_order_id
-  plan        String           // PRO | PREMIUM
-  amount      Float
-  currency    String   @default("INR")
-  status      String   @default("CREATED") // CREATED | PAID | FAILED | DROPPED
-  cfPaymentId String?          // from webhook
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  orderId   String
+  cfOrderId String?
+  plan      String
+  amount    Int
+  currency  String
+  status    String
+  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
+  user User @relation(fields: [userId], references: [id])
 }
