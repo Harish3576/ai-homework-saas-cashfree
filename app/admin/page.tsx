@@ -1,23 +1,52 @@
 import { readSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 function isAdmin(email: string) {
   const list = (process.env.ADMIN_EMAILS || "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
+
   return list.includes(email.toLowerCase());
 }
 
+type AdminUserRow = {
+  id: string;
+  email: string;
+  plan: string;
+  planUntil: Date | null;
+  createdAt: Date;
+  _count: {
+    solves: number;
+    payments: number;
+  };
+};
+
+type AdminPaymentRow = {
+  id: string;
+  orderId: string;
+  cfOrderId: string | null;
+  userId: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: Date;
+};
+
 export default async function AdminPage() {
   const session = await readSession();
+
   if (!session) {
     return (
       <main className="card">
         <h1 style={{ marginTop: 0 }}>Admin</h1>
         <p className="muted">Please login first.</p>
-        <Link className="btn" href="/login?next=/admin">Login</Link>
+        <Link className="btn" href="/login?next=/admin">
+          Login
+        </Link>
       </main>
     );
   }
@@ -27,12 +56,14 @@ export default async function AdminPage() {
       <main className="card">
         <h1 style={{ marginTop: 0 }}>Access Denied</h1>
         <p className="muted">You are not allowed to view this page.</p>
-        <Link className="btn" href="/dashboard">Go Dashboard</Link>
+        <Link className="btn" href="/dashboard">
+          Go Dashboard
+        </Link>
       </main>
     );
   }
 
-  const users = await prisma.user.findMany({
+  const users: AdminUserRow[] = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -44,7 +75,7 @@ export default async function AdminPage() {
     },
   });
 
-  const payments = await prisma.payment.findMany({
+  const payments: AdminPaymentRow[] = await prisma.payment.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
@@ -83,11 +114,13 @@ export default async function AdminPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {users.map((u: AdminUserRow) => (
               <tr key={u.id}>
                 <td style={td}>{u.email}</td>
                 <td style={td}>{u.plan}</td>
-                <td style={td}>{u.planUntil ? u.planUntil.toISOString().slice(0, 10) : "-"}</td>
+                <td style={td}>
+                  {u.planUntil ? u.planUntil.toISOString().slice(0, 10) : "-"}
+                </td>
                 <td style={td}>{u._count.solves}</td>
                 <td style={td}>{u._count.payments}</td>
                 <td style={td}>{u.createdAt.toISOString().slice(0, 10)}</td>
@@ -104,7 +137,7 @@ export default async function AdminPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={th}>OrderId</th>
+              <th style={th}>Order ID</th>
               <th style={th}>Plan</th>
               <th style={th}>Amount</th>
               <th style={th}>Status</th>
@@ -112,7 +145,7 @@ export default async function AdminPage() {
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => (
+            {payments.map((p: AdminPaymentRow) => (
               <tr key={p.id}>
                 <td style={td}>{p.orderId}</td>
                 <td style={td}>{p.plan}</td>
@@ -128,12 +161,14 @@ export default async function AdminPage() {
       </div>
 
       <div className="hr" />
-      <Link className="btn" href="/dashboard">Back to Dashboard</Link>
+      <Link className="btn" href="/dashboard">
+        Back to Dashboard
+      </Link>
     </main>
   );
 }
 
-const th: React.CSSProperties = {
+const th: CSSProperties = {
   textAlign: "left",
   padding: "10px",
   borderBottom: "1px solid rgba(255,255,255,0.10)",
@@ -141,7 +176,7 @@ const th: React.CSSProperties = {
   color: "rgba(231,238,252,0.85)",
 };
 
-const td: React.CSSProperties = {
+const td: CSSProperties = {
   padding: "10px",
   borderBottom: "1px solid rgba(255,255,255,0.08)",
   fontSize: 13,
