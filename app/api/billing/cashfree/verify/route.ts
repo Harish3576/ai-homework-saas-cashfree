@@ -33,10 +33,10 @@ export async function POST(req: Request) {
     const newUntil = addDays(base, 30);
 
     await prisma.$transaction([
-      prisma.payment.update({
-        where: { orderId },
-        data: { status: "PAID" },
-      }),
+  prisma.payment.updateMany({
+    where: { orderId },
+    data: { status: "PAID" },
+  }),
       prisma.user.update({
         where: { id: session.uid },
         data: { plan: payment.plan, planUntil: newUntil },
