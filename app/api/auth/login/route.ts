@@ -11,24 +11,48 @@ const Schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const form = await req.formData();
-  const parsed = Schema.safeParse({
-    email: String(form.get("email") || ""),
-    password: String(form.get("password") || ""),
-    next: form.get("next") ? String(form.get("next")) : undefined,
-  });
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid email/password" }, { status: 400 });
+  try {
+    const form = await req.formData();
+
+    const parsed = Schema.safeParse({
+      email: String(form.get("email") || ""),
+      password: String(form.get("password") || ""),
+      next: form.get("next") ? String(form.get("next")) : undefined,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid email/password" }, { status: 400 });
+    }
+
+    const { email, password, next } = parsed.data;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    await createSessionCookie({
+      uid: user.id,
+      email: user.email,
+      plan: user.plan as "FREE" | "PRO" | "PREMIUM",
+    });
+
+    const baseUrl =
+      process.env.APP_BASE_URL ||
+      "https://https-github-com-harish3576-ai-homework.onrender.com";
+
+    const safeNext = next && next.startsWith("/") ? next : "/dashboard";
+
+    return NextResponse.redirect(`${baseUrl}${safeNext}`);
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message || "Login failed" },
+      { status: 500 }
+    );
   }
-
-  const { email, password, next } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-
-  await createSessionCookie({ uid: user.id, email: user.email, plan: user.plan as any });
-
-  return NextResponse.redirect(new URL(next || "/dashboard", req.url));
 }
