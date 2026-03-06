@@ -12,12 +12,14 @@ const Schema = z.object({
 export async function POST(req: Request) {
   try {
     const session = await readSession();
+
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json().catch(() => null);
     const parsed = Schema.safeParse(body);
+
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid prompt" }, { status: 400 });
     }
@@ -34,16 +36,18 @@ export async function POST(req: Request) {
     }
 
     const prompt = parsed.data.prompt;
-
     const result = await solveWithAI(prompt);
 
     await prisma.solve.create({
-      data: { userId: session.uid, prompt, result },
+      data: {
+        userId: session.uid,
+        question: prompt,
+        answer: result,
+      },
     });
 
     return NextResponse.json({ result, remaining: limit.remaining });
   } catch (err: any) {
-    // ✅ Always return JSON even on server error
     return NextResponse.json(
       { error: err?.message || "Server error" },
       { status: 500 }
