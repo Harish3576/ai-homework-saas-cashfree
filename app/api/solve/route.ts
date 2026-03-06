@@ -41,8 +41,8 @@ export async function POST(req: Request) {
     await prisma.solve.create({
       data: {
         userId: session.uid,
-        question: prompt,
-        answer: result,
+        prompt,
+        result,
       },
     });
 
